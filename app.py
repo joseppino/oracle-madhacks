@@ -1,5 +1,4 @@
 import os
-import json
 from slack_bolt import App
 
 import logging
@@ -14,8 +13,8 @@ app = App(
 )
 
 @app.message("Hello World")
-def secure_cloud_message(ack, client, logger, body):
-    """ Responds to user when exact phrase is detected """
+def hello_world(ack, client, logger, body):
+    """ Sends user a DM with text 'Hello World!' """
     ack()
     logger.info(body)
     user_id = body["user_id"]
