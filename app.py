@@ -18,12 +18,26 @@ def hello_world(ack, client, logger, body):
     ack()
     logger.info(body)
     user_id = body["user_id"]
+    channel_id = body["channel_id"]
+
+    client.chat_postMessage(
+        channel=channel_id,
+        as_user=True,
+        text="Hello world!")
+
+@app.command("/help")
+def help(ack, logger, body, client):
+    """ Lists all currently active commands """
+    ack()
+    logger.info(body)
+    user_id = body["user_id"]
+
 
     client.chat_postMessage(
         channel=user_id,
         as_user=True,
-        text="Hello world!")
-
+        text="I am here to help you"
+    )
 
 # Start your app
 if __name__ == "__main__":
