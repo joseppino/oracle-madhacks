@@ -133,6 +133,34 @@ def add_event(ack, logger, body, client):
 	]
     )
 
+@app.action("actionId-1")
+def handle_some_action(ack, body, logger, client):
+    ack()
+    logger.info(body)
+    user_id = body["user_id"]
+
+
+    client.chat_postMessage(
+        channel=user_id, 
+        as_user=True, 
+        text="Accepted!"
+    )
+
+
+@app.action("actionId-2")
+def handle_some_action(ack, body, logger, client):
+    ack()
+    logger.info(body)
+    user_id = body["user_id"]
+
+
+    client.chat_postMessage(
+        channel=user_id, 
+        as_user=True, 
+        text="Accepted!"
+    )
+
+
 # Start your app
 if __name__ == "__main__":
     app.start(port=int(os.environ.get("PORT", 3000)))
