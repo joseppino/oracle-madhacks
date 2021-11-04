@@ -1,6 +1,5 @@
 slack_bolt
 requests
-googleapiclient.discovery
-google_auth_oauthlib.flow
-google.auth.transport.requests
-google.oauth2.credentials
+oogle-api-python-client 
+google-auth-httplib2 
+google-auth-oauthlib

@@ -24,117 +24,6 @@ app = App(
     signing_secret=os.environ.get("SLACK_SIGNING_SECRET")
 )
 
-@app.command("/help")
-def help(ack, logger, body, client):
-    """ Lists all currently active commands """
-    ack()
-    logger.info(body)
-    user_id = body["user_id"]
-
-
-    client.chat_postMessage(
-        channel=user_id,
-        as_user=True,
-        text="I am here to help you"
-    )
-
-@app.command("/add_event")
-def add_event(ack, logger, body, client):
-    """ Suggests a new event """
-    ack()
-    logger.info(body)
-    user_id = body["user_id"]
-
-
-    client.chat_postMessage(
-        channel=user_id, 
-        as_user=True, 
-	blocks = [
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "Hello! There is a gap in your calendar at *13:00*, perhaps you would like *to go on a walk*"
-			}
-		},
-		{
-			"type": "input",
-			"element": {
-				"type": "timepicker",
-				"initial_time": "13:00",
-				"placeholder": {
-					"type": "plain_text",
-					"text": "Select time",
-					"emoji": True
-				},
-				"action_id": "timepicker-action"
-			},
-			"label": {
-				"type": "plain_text",
-				"text": "Start time",
-				"emoji": True
-			}
-		},
-		{
-			"type": "input",
-			"element": {
-				"type": "timepicker",
-				"initial_time": "13:30",
-				"placeholder": {
-					"type": "plain_text",
-					"text": "Select time",
-					"emoji": True
-				},
-				"action_id": "timepicker-action"
-			},
-			"label": {
-				"type": "plain_text",
-				"text": "Finish time",
-				"emoji": True
-			}
-		},
-		{
-			"type": "actions",
-			"elements": [
-				{
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"text": "Accept",
-						"emoji": True
-					},
-					"value": "click_me_123",
-					"action_id": "actionId-0",
-					"style": "primary"
-				},
-				{
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"text": "Decline",
-						"emoji": True
-					},
-					"value": "Decline",
-					"action_id": "actionId-1",
-					"style": "danger"
-				},
-				{
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"text": "Different activity!",
-						"emoji": True
-					},
-					"value": "Decline",
-					"action_id": "actionId-2"
-				}
-			]
-		}
-	]
-    )
-    
-
-    
 
 @app.action("actionId-0")
 def handle_some_action(ack, body, logger, client, say):
@@ -144,52 +33,38 @@ def handle_some_action(ack, body, logger, client, say):
     ack()
     logger.info(body)
 
+    channel_id = body["channel_id"]
+    message_id = body["message_id"]
+
     say("accepted")
-    #say(body["message"]["blocks"][1]["element"])
 
+    # getting user selected time
     timepickers = body["state"]["values"]
-
     timepickers_list = list(timepickers.items())
-
-    logger.info(timepickers_list)
-
     initial_time = timepickers_list[0][1]["timepicker-action"]["selected_time"]
-    logger.info(initial_time)
     end_time = timepickers_list[1][1]["timepicker-action"]["selected_time"]
-    logger.info(end_time)
 
-    say(initial_time)
-    say(end_time)
+    # call some functions to add to calendar
 
-    # make api calls to add to calender here
+    app.client.chat_delete(
+        channel=channel_id,
+        ts=message_id
+    )
 
-
-    #response = requests.request("POST", url, headers=headers, data=payload)
-
-    # print(response.text)
-
-    #user_id = body["user_id"]
-
-    #client.chat_postMessage(
-    #    channel=user_id, 
-    #    as_user=True, 
-    #    text="Accepted!"
-    #)
 
 @app.action("actionId-1")
 def handle_some_action(ack, body, logger, client, say):
     ack()
     logger.info(body)
-    #user_id = body["user_id"]
+    channel_id = body["channel_id"]
+    message_id = body["message_id"]
 
     say("Declined")
     
-
-    #client.chat_postMessage(
-    #    as_user=True, 
-    #    channel=user_id, 
-    #    text="Accepted!"
-    #)
+    app.client.chat_delete(
+        channel=channel_id,
+        ts=message_id
+    )
 
 
 # this func may be unecessary
@@ -357,18 +232,18 @@ def create_invite(name, activities):
 
 
 def get_user_time():
-    # calendar API calls here
-    start_time = "12:00"
-    finish_time = "13:00"
 
     logging.info("Calling quickstart main func")
-    quickstart.main()
+    start_time, finish_time = quickstart.main()
 
     return start_time, finish_time
 
 
 def get_user_activity(activities):
-    # do some random choosing of user activities based on like scale
+    """ DONE 
+        Chooses an activity to send to the user based on their chosen activies. 
+        The choice is then chosen randomly with weights determined by their likeScale
+    """
 
     weights = []
     activity_names = []
@@ -390,11 +265,9 @@ def get_users_info():
     Returns a dict of user id, name, email and the activities they like to do
     """
     
+    # requesting API for user information
     users_request = requests.request("GET", "https://rrmadhacks-oraseemeaukinnovation.builder.ocp.oraclecloud.com/ic/builder/rt/Calendar_Break_Insertion_Tool/live/resources/data/Account").json()
-    #logging.info(response.json())
-
     user_activities = requests.request("GET", "https://rrmadhacks-oraseemeaukinnovation.builder.ocp.oraclecloud.com/ic/builder/rt/Calendar_Break_Insertion_Tool/live/resources/data/UserActivities").json()
-
     activities_list = requests.request("GET", "https://rrmadhacks-oraseemeaukinnovation.builder.ocp.oraclecloud.com/ic/builder/rt/Calendar_Break_Insertion_Tool/live/resources/data/Activities").json()
     
     users_info = []
@@ -406,8 +279,8 @@ def get_users_info():
         slack = user["slack"]
 
         activities = []
-        #logging.info(user_activities["items"])
 
+        # gathering user information together 
         for user_activity in user_activities["items"]:
             if user_activity["account"] == id:
                 for activity in activities_list["items"]:
@@ -417,15 +290,13 @@ def get_users_info():
         # adding all user info into a dictionary
         users_info.append({"id" : id, "name": name, "email": email, "slack": slack, "activities": activities})
 
-
-    #logging.info(users_info)
-
     return users_info
             
 
 # Start your app
 if __name__ == "__main__":
 
+    # creating the daily message sending thread
     try:
         logging.info("Creating thread")
         time_keeper = threading.Thread(target=daily_checker)
