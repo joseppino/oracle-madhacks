@@ -1,0 +1,82 @@
+[  
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": f"Hello {name}! There is a gap in your calendar at {initial_time}, perhaps you would like {chosen_activity}"
+        }
+    },
+    {
+        "type": "input",
+        "element": {
+            "type": "timepicker",
+            "initial_time": f"{initial_time}",
+            "placeholder": {
+                "type": "plain_text",
+                "text": "Select time",
+                "emoji": True
+            },
+            "action_id": "timepicker-action"
+        },
+        "label": {
+            "type": "plain_text",
+            "text": "Start time",
+            "emoji": True
+        }
+    },
+    {
+        "type": "input",
+        "element": {
+            "type": "timepicker",
+            "initial_time": f"{finish_time}",
+            "placeholder": {
+                "type": "plain_text",
+                "text": "Select time",
+                "emoji": True
+            },
+            "action_id": "timepicker-action"
+        },
+        "label": {
+            "type": "plain_text",
+            "text": "Finish time",
+            "emoji": True
+        }
+    },
+    {
+        "type": "actions",
+        "elements": [
+            {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Accept",
+                    "emoji": True
+                },
+                "value": "click_me_123",
+                "action_id": "actionId-0",
+                "style": "primary"
+            },
+            {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Decline",
+                    "emoji": True
+                },
+                "value": "Decline",
+                "action_id": "actionId-1",
+                "style": "danger"
+            },
+            {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Different activity!",
+                    "emoji": True
+                },
+                "value": "Decline",
+                "action_id": "actionId-2"
+            }
+        ]
+    }
+]
