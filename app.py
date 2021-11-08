@@ -14,7 +14,7 @@ import threading
 import os
 import random
 
-import quickstart
+import google_api
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,16 +36,26 @@ def handle_some_action(ack, body, logger, client, say):
 
     channel_id = body["container"]["channel_id"]
     message_ts = body["container"]["message_ts"]
-
-    say("accepted")
+    user_id = body["user"]["id"]
+    
+    say("You have accepted - you will be shortly sent an invite event to your calendar!")
 
     # getting user selected time
     timepickers = body["state"]["values"]
     timepickers_list = list(timepickers.items())
-    initial_time = timepickers_list[0][1]["timepicker-action"]["selected_time"]
+    start_time = timepickers_list[0][1]["timepicker-action"]["selected_time"]
     end_time = timepickers_list[1][1]["timepicker-action"]["selected_time"]
 
+    activity = body["message"]["blocks"][0]["text"]["text"].split("like")[1]
+
+    title = f"{activity} invite from Automatic Calendar Break Insertion Tool"
+    desc = activity
+
     # call some functions to add to calendar
+    if add_to_calendar(user_id, start_time, end_time, desc, title) == 1:
+        logging.info(f"Successfully sent event invite to {user_id}")
+    else: 
+        logging.warn(f"Failed to send invite to {user_id}")
 
     app.client.chat_delete(
         channel=channel_id,
@@ -60,7 +70,7 @@ def handle_some_action(ack, body, logger, client, say):
     channel_id = body["container"]["channel_id"]
     message_ts = body["container"]["message_ts"]
 
-    say("Invite declined, see you soon! \n If you wish to unsubscribe visit <link>")
+    say("Invite declined, see you soon!")
     
     app.client.chat_delete(
         channel=channel_id,
@@ -90,7 +100,6 @@ def handle_some_action(ack, body, logger, client, say):
 def daily_checker():
     # here for debugging
     send_all_invites()
-
 
     while True:
 
@@ -122,6 +131,7 @@ def send_all_invites():
 
     for user in user_info:
         send_user_invite(user)
+
 
 def send_user_invite(user):
     name = user["name"]
@@ -224,16 +234,7 @@ def create_invite(name, activities):
                 "value": "Decline",
                 "action_id": "actionId-1",
                 "style": "danger"
-            },
-            {
-                "type": "button",
-                "text": {
-                    "type": "plain_text",
-                    "text": "Different activity!",
-                    "emoji": True
-                },
-                "value": "Decline",
-                "action_id": "actionId-2"}
+            }
             ]
         }
     ]
@@ -248,7 +249,7 @@ def get_user_time():
     finish_time = "14:50"
 
     logging.info("Calling Google API main func")
-    #start_time, finish_time = quickstart.main()
+    #start_time, finish_time = google_api.get_time()
 
     return start_time, finish_time
 
@@ -310,7 +311,7 @@ def get_users_info():
                     slack_id = user["id"]
                     break
             except KeyError as e:
-                logging.info("No email found for {}".format(user["profile"]["real_name"]))
+                logging.warn("No email found for {}".format(user["profile"]["real_name"]))
                 continue
 
         if slack_id == "":
@@ -332,7 +333,39 @@ def get_users_info():
         logging.debug(users_info)
 
     return users_info
-            
+
+def add_to_calendar(slack_id, start_time, end_time, desc, title):
+    # talk to google api
+
+
+    # calling slack api to get email associated with slack id 
+    try:
+        # Call the users.list method using the WebClient
+        result = app.client.users_list()
+
+    except SlackApiError as e:
+        logging.error("Error creating conversation: {}".format(e))
+
+    for user in result["members"]:
+        logging.debug(user["profile"])
+        try:
+            if user["id"]== slack_id:
+                email =  user["profile"]["email"]
+                break
+        except KeyError as e:
+            logging.warn("No email found for {}".format(user["profile"]["real_name"]))
+            continue
+
+    # call calendar api with email start_time, end_time, desc/title
+    
+    if google_api.schedule_meeting(start_time=start_time, end_time=end_time, email=email, desc=desc, title=title) == 1:
+        logging.info(f"Successfully sent meeting invite for {email}")
+        return 1
+    else:
+        logging.warn(f"Failed to send meeting invite for {email}")
+        return 0
+
+                    
 
 # Start your app
 if __name__ == "__main__":
