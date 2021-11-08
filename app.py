@@ -10,10 +10,10 @@ import requests
 import json
 import time
 import datetime
+from datetime import timedelta, datetime
 import threading
 import os
 import random
-
 import google_api
 
 logging.basicConfig(level=logging.INFO)
@@ -104,7 +104,7 @@ def daily_checker():
     while True:
 
         # setting timers and sleeping thread
-        tomorrow = datetime.datetime.today() + datetime.timedelta(days=1)
+        tomorrow = datetime.today() + timedelta(days=1)
         scheduled_time = tomorrow.replace(hour=9, minute=0, second=0, microsecond=0)
         scheduled_timestamp = scheduled_time.strftime('%s')
         logging.info("Thread sleeping till " + scheduled_timestamp)
@@ -113,7 +113,7 @@ def daily_checker():
         time.sleep(time_to_sleep)
 
         # after thread wakes up at 9am (?)
-        logging.info("Thread waking up at: " + datetime.datetime.now())
+        logging.info("Thread waking up at: " + datetime.now())
 
         logging.info("Thread doing daily message sending")
 
@@ -245,11 +245,16 @@ def create_invite(name, activities):
 
 def get_user_time():
 
-    start_time = "12:00"
-    finish_time = "14:50"
-
     logging.info("Calling Google API main func")
-    #start_time, finish_time = google_api.get_time()
+    time_get = google_api.get_time()[11:16]
+    start_time = datetime.strptime(time_get ,'%H:%M')
+    finish_time = start_time + timedelta(minutes=15)
+
+    start_time = str(start_time)[11:16]
+    finish_time = str(finish_time)[11:16]
+
+    logging.info(start_time)
+    logging.info(finish_time)
 
     return start_time, finish_time
 
