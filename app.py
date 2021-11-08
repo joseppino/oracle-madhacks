@@ -2,6 +2,7 @@ import os
 
 from requests.api import get, request
 from slack_bolt import App
+from slack_sdk.errors import SlackApiError
 
 import logging
 
@@ -15,7 +16,7 @@ import random
 
 import quickstart
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 # Initializes your app with your bot token and signing secret
@@ -33,8 +34,8 @@ def handle_some_action(ack, body, logger, client, say):
     ack()
     logger.info(body)
 
-    channel_id = body["channel_id"]
-    message_id = body["message_id"]
+    channel_id = body["container"]["channel_id"]
+    message_ts = body["container"]["message_ts"]
 
     say("accepted")
 
@@ -48,7 +49,7 @@ def handle_some_action(ack, body, logger, client, say):
 
     app.client.chat_delete(
         channel=channel_id,
-        ts=message_id
+        ts=message_ts
     )
 
 
@@ -56,22 +57,24 @@ def handle_some_action(ack, body, logger, client, say):
 def handle_some_action(ack, body, logger, client, say):
     ack()
     logger.info(body)
-    channel_id = body["channel_id"]
-    message_id = body["message_id"]
+    channel_id = body["container"]["channel_id"]
+    message_ts = body["container"]["message_ts"]
 
-    say("Declined")
+    say("Invite declined, see you soon! \n If you wish to unsubscribe visit <link>")
     
     app.client.chat_delete(
         channel=channel_id,
-        ts=message_id
+        ts=message_ts
     )
 
 
-# this func may be unecessary
+# removed for now
+"""
 @app.action("actionId-2")
 def handle_some_action(ack, body, logger, client, say):
+    #UNFINISHED (Not sure if doable)
     ack()
-    logger.info(body)
+    logger.debug(body)
     #user_id = body["user_id"]
 
     say("Different activity")
@@ -82,7 +85,7 @@ def handle_some_action(ack, body, logger, client, say):
     #    as_user=True, 
     #    text="Accepted!"
     #)
-
+"""
 
 def daily_checker():
     # here for debugging
@@ -115,25 +118,33 @@ def daily_checker():
     
 def send_all_invites():
     user_info = get_users_info()
+    logging.debug(user_info)
 
     for user in user_info:
         send_user_invite(user)
 
 def send_user_invite(user):
     name = user["name"]
-    email = user["email"]
-    slack = user["slack"]
+    slack_id = user["slack_id"]
     activites = user["activities"]
 
-    invite = create_invite(name, activites)
+    logging.info(f"Sending user invite to {name}, slack id = {slack_id}")
 
-
-    app.client.chat_postMessage(
+    if not activites:
+        app.client.chat_postMessage(
         as_user=True, 
-        channel="U02H9TLBM7G", 
-        blocks=invite,
-        text="Hello from the Automatic Calendar Break Insertion Tool!"
+        channel=slack_id, 
+        text=f"It appears you have no activites set yet {name}! Please go to <link> to set them up"
     )
+    else:
+        invite = create_invite(name, activites)
+
+        app.client.chat_postMessage(
+            as_user=True, 
+            channel=slack_id, 
+            blocks=invite,
+            text="Hello from the Automatic Calendar Break Insertion Tool!"
+        )
 
 def create_invite(name, activities):
     """ Populates invite template with variables which is sent as a Slack Block to the user """
@@ -227,14 +238,17 @@ def create_invite(name, activities):
         }
     ]
 
-    logging.info(invite)  
+    logging.debug(invite)  
     return invite
 
 
 def get_user_time():
 
-    logging.info("Calling quickstart main func")
-    start_time, finish_time = quickstart.main()
+    start_time = "12:00"
+    finish_time = "14:50"
+
+    logging.info("Calling Google API main func")
+    #start_time, finish_time = quickstart.main()
 
     return start_time, finish_time
 
@@ -248,13 +262,14 @@ def get_user_activity(activities):
     weights = []
     activity_names = []
     for activity in activities:
+        logging.debug(activity)
         weights.append(activity["likeScale"])
         activity_names.append(activity["name"])
 
 
     # Making weighted choise of activity based on likeScale
-    logging.info(len(activity_names))
-    logging.info(len(weights))
+    logging.debug(activity_names)
+    logging.debug(weights)
     choice = random.choices(population=activity_names, weights=weights, k=1)[0]
 
     return choice
@@ -272,13 +287,37 @@ def get_users_info():
     
     users_info = []
 
+    try:
+        # Call the users.list method using the WebClient
+        result = app.client.users_list()
+
+    except SlackApiError as e:
+        logging.error("Error creating conversation: {}".format(e))
+
     for user in users_request["items"]:
         id = user["id"]
         name = user["name"]
         email = user["email"]
-        slack = user["slack"]
-
         activities = []
+
+        slack_id = ""
+
+        # getting users slack id by comparing emails
+        for user in result["members"]:
+            logging.debug(user["profile"])
+            try:
+                if user["profile"]["email"] == email:
+                    slack_id = user["id"]
+                    break
+            except KeyError as e:
+                logging.info("No email found for {}".format(user["profile"]["real_name"]))
+                continue
+
+        if slack_id == "":
+            logging.info(f"Slack ID not found for {name}, continuing")
+            continue
+        else:
+            logging.info(f"Sladk ID {slack_id} found for {name}")
 
         # gathering user information together 
         for user_activity in user_activities["items"]:
@@ -287,8 +326,10 @@ def get_users_info():
                     if activity["id"] == user_activity["activity"]:
                         activities.append({"name": activity["name"], "desc": activity["description"], "likeScale": user_activity["likeScale"]})
 
+
         # adding all user info into a dictionary
-        users_info.append({"id" : id, "name": name, "email": email, "slack": slack, "activities": activities})
+        users_info.append({"id" : id, "name": name, "email": email, "slack_id": slack_id, "activities": activities})
+        logging.debug(users_info)
 
     return users_info
             
